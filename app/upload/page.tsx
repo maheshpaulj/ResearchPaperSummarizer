@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -5,8 +6,8 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSession } from "next-auth/react";
+import { SummaryCard } from "@/components/SummaryCard";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -21,7 +22,11 @@ export default function Dashboard() {
   const { data: session, status } = useSession();
 
   if (status === "loading") {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-600">
+        Loading...
+      </div>
+    );
   }
 
   if (status === "unauthenticated" || !session) {
@@ -53,16 +58,13 @@ export default function Dashboard() {
         body: formData,
       });
 
-      console.log("Upload response status:", uploadRes.status);
-      const uploadText = await uploadRes.text();
-      console.log("Upload response:", uploadText);
-
       if (!uploadRes.ok) {
-        console.error("Upload failed with status:", uploadRes.status, "Response:", uploadText);
-        return;
+        const errorText = await uploadRes.text();
+        console.error("Upload failed:", uploadRes.status, errorText);
+        throw new Error("Upload failed");
       }
 
-      const { fileUrl } = JSON.parse(uploadText);
+      const { fileUrl } = await uploadRes.json();
       console.log("Uploaded file URL:", fileUrl);
 
       // Step 2: Summarize using /api/summarize
@@ -73,22 +75,22 @@ export default function Dashboard() {
         body: JSON.stringify({ fileUrl }),
       });
 
-      console.log("Summarize response status:", summarizeRes.status);
-      const summarizeText = await summarizeRes.text();
-      console.log("Summarize response:", summarizeText);
-
-      if (summarizeRes.ok) {
-        const { summary } = JSON.parse(summarizeText);
-        console.log("Received summary:", summary);
-        setCurrentSummary({
-          title: summary.title,
-          content: summary.content,
-          fileUrl: summary.fileUrl,
-        });
-        setFile(null);
-      } else {
-        console.error("Summarize failed with status:", summarizeRes.status, "Response:", summarizeText);
+      if (!summarizeRes.ok) {
+        const errorText = await summarizeRes.text();
+        console.error("Summarize failed:", summarizeRes.status, errorText);
+        throw new Error("Summarize failed");
       }
+
+      const { summary } = await summarizeRes.json();
+      console.log("Received summary:", summary);
+
+      // Use the title from the API response
+      setCurrentSummary({
+        title: summary.title, // From API: "Generative Adversarial Network..."
+        content: summary.content,
+        fileUrl: summary.fileUrl,
+      });
+      setFile(null);
     } catch (error) {
       console.error("Error during upload or summarize:", error);
     } finally {
@@ -110,7 +112,9 @@ export default function Dashboard() {
         className="max-w-4xl mx-auto space-y-8"
       >
         <div className="flex justify-start items-center">
-          <h1 className="text-3xl font-bold text-gray-800">Upload Research Paper</h1>
+          <h1 className="text-3xl font-bold text-gray-800">
+            Upload Research Paper
+          </h1>
         </div>
 
         <div className="flex gap-4">
@@ -118,41 +122,24 @@ export default function Dashboard() {
             type="file"
             accept=".pdf"
             onChange={handleFileChange}
-            className="flex-1"
+            className="flex-1 bg-white border-gray-300"
             disabled={uploading}
           />
           <Button
             onClick={handleUploadAndSummarize}
             disabled={!file || uploading}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-blue-600 hover:bg-blue-700 transition-colors"
           >
             {uploading ? "Processing..." : "Upload & Summarize"}
           </Button>
         </div>
 
         {currentSummary && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle>{currentSummary.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 mb-4">{currentSummary.content}</p>
-                <a
-                  href={currentSummary.fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  View PDF
-                </a>
-              </CardContent>
-            </Card>
-          </motion.div>
+          <SummaryCard
+            title={currentSummary.title}
+            content={currentSummary.content}
+            fileUrl={currentSummary.fileUrl}
+          />
         )}
       </motion.div>
     </div>

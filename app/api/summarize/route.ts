@@ -1,3 +1,4 @@
+// app/api/summarize/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { PrismaClient } from "@prisma/client";
@@ -42,6 +43,9 @@ export async function POST(req: NextRequest) {
 
     // Step 3: Summarize using OpenRouter
     console.log("Calling OpenRouter API...");
+    if (!process.env.OPENROUTER_API_KEY) {
+      throw new Error("OPENROUTER_API_KEY is not set");
+    }
     const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -55,11 +59,9 @@ export async function POST(req: NextRequest) {
         messages: [
           {
             role: "system",
-            content: `You are an expert research paper summarizer. 
-            - Full markdown (#, ##, **bold**, *italic*)
-            - Return content in the exact JSON format requested.`,
+            content: "You are an expert research paper summarizer. Return a JSON object wrapped in markdown code block (```json). Include fields: title, authors, abstract, introduction, model, experiments, results, conclusion. Use full markdown syntax (#, ##, **bold**, *italic*) within string values.",
           },
-          { role: "user", content: pdfText },
+          { role: "user", content: `Summarize this research paper:\n\n${pdfText}` },
         ],
         temperature: 0.7,
         max_tokens: 8172,
@@ -74,21 +76,32 @@ export async function POST(req: NextRequest) {
 
     const openRouterData = await openRouterResponse.json();
     const summaryContent = openRouterData.choices[0].message.content;
-    console.log("Summary content:", summaryContent);
+    console.log("Raw summary content:", summaryContent);
 
-    // Step 4: Save to Neon Postgres
+    // Step 4: Extract JSON from markdown
+    const jsonMatch = summaryContent.match(/```json\s*([\s\S]*?)\s*```/);
+    if (!jsonMatch || !jsonMatch[1]) {
+      console.error("Failed to extract JSON from markdown:", summaryContent);
+      throw new Error("Invalid summary format: JSON not found in markdown");
+    }
+    const jsonString = jsonMatch[1].trim();
+    const parsedSummary = JSON.parse(jsonString);
+    console.log("Parsed summary:", parsedSummary);
+
+    // Step 5: Save to Neon Postgres
     console.log("Saving to Neon Postgres...");
     const prisma = new PrismaClient();
-    const title = fileUrl.split("/").pop()?.replace(/\.pdf$/, "") || "Untitled";
+    const title = parsedSummary.title; // Use title from OpenRouter response
     const summary = await prisma.summary.create({
       data: {
         userId,
         title,
-        content: summaryContent,
+        content: summaryContent, // Store raw markdown for display
         fileUrl,
       },
     });
     console.log("Saved summary ID:", summary.id);
+    await prisma.$disconnect();
 
     return NextResponse.json({ message: "File summarized", summary }, { status: 200 });
   } catch (error) {
