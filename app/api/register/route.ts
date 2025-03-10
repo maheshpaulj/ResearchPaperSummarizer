@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcrypt"); // eslint-disable-line @typescript-eslint/no-require-imports
 import { NextResponse } from "next/server";
 
 const prisma = new PrismaClient();
