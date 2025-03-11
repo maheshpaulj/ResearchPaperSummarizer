@@ -53,7 +53,7 @@ export default function Dashboard() {
     try {
       // Step 1: Upload to /api/upload
       console.log("Sending POST request to /api/upload");
-      const uploadRes = await fetch("http://localhost:6600/api/upload", {
+      const uploadRes = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
@@ -69,7 +69,7 @@ export default function Dashboard() {
 
       // Step 2: Summarize using /api/summarize
       console.log("Sending POST request to /api/summarize");
-      const summarizeRes = await fetch("http://localhost:6600/api/summarize", {
+      const summarizeRes = await fetch("/api/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileUrl }),
