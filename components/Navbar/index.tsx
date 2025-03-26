@@ -4,6 +4,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils"; // Utility from shadcn/ui for className merging
+import Link from "next/link";
 
 export default function Navbar() {
   const { data: session, status } = useSession();
@@ -21,10 +22,10 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-black text-white p-4 shadow-md">
+    <nav className="bg-white text-black p-4 shadow-md fixed w-full z-50">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
         {/* Brand/Logo */}
-        <div className="text-xl font-bold">ResearchHub</div>
+        <Link href={'/'} className="text-xl font-bold">SEPM Project</Link>
 
         {/* Navigation Links */}
         <ul className="flex space-x-6">
@@ -33,7 +34,7 @@ export default function Navbar() {
               <Button
                 variant="link"
                 className={cn(
-                  "text-white hover:text-gray-300 p-0",
+                  "text-black hover:text-gray-700 p-0",
                   "transition-colors duration-200"
                 )}
                 onClick={() => handleNavClick(item.path)}
@@ -51,7 +52,7 @@ export default function Navbar() {
           ) : session ? (
             <Button
               variant="outline"
-              className="text-black border-white hover:bg-gray-300"
+              className="text-black border-black hover:bg-red-400"
               onClick={() => signOut({ callbackUrl: "/signin" })}
             >
               Sign Out
@@ -59,7 +60,7 @@ export default function Navbar() {
           ) : (
             <Button
               variant="outline"
-              className="text-white border-white hover:bg-gray-700"
+              className="text-black border-black hover:bg-gray-300"
               onClick={() => router.push("/signin")}
             >
               Sign In

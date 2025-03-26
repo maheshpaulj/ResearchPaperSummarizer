@@ -8,27 +8,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSession } from "next-auth/react";
-import { Search } from "lucide-react";
+import { Search, Calendar, ArrowUpDown } from "lucide-react";
+
+interface Summary {
+  id: string;
+  title: string;
+  createdAt: string; // ISO date string
+}
 
 export default function SummariesPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
-  const [summaries, setSummaries] = useState<
-    { id: string; title: string }[]
-  >([]);
-  const [filteredSummaries, setFilteredSummaries] = useState<
-    { id: string; title: string }[]
-  >([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [summaries, setSummaries] = useState<Summary[]>([]);
+  const [filteredSummaries, setFilteredSummaries] = useState<Summary[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
+  // Fetch summaries from API
   const fetchSummaries = async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/fetchSummaries");
-      if (!res.ok) {
-        throw new Error("Failed to fetch summaries");
-      }
+      if (!res.ok) throw new Error("Failed to fetch summaries");
       const { summaries } = await res.json();
       setSummaries(summaries);
       setFilteredSummaries(summaries);
@@ -39,71 +41,88 @@ export default function SummariesPage() {
     }
   };
 
-  // Fetch summaries when session changes
+  // Fetch summaries on session change
   useEffect(() => {
-    if (status === "authenticated" && session) {
-      fetchSummaries();
-    }
-    if (status === "unauthenticated") {
-      router.push("/signin");
-    }
+    if (status === "authenticated" && session) fetchSummaries();
+    if (status === "unauthenticated") router.push("/signin");
   }, [session, status, router]);
 
-  // Filter summaries based on search term
+  // Filter and sort summaries
   useEffect(() => {
-    const filtered = summaries.filter((summary) =>
-      summary.title.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredSummaries(filtered);
-  }, [searchTerm, summaries]);
+    let result = [...summaries];
+
+    // Filter by search term
+    if (searchTerm) {
+      result = result.filter((summary) =>
+        summary.title.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Sort by createdAt
+    result.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+    });
+
+    setFilteredSummaries(result);
+  }, [searchTerm, summaries, sortOrder]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
 
+  const toggleSortOrder = () => {
+    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+  };
+
   const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.5 } },
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
   };
 
   // Loading state
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-600">
+      <div className="flex min-h-screen items-center justify-center text-gray-600">
         Loading...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 p-6 pt-28">
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
         className="max-w-4xl mx-auto space-y-8"
       >
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-800">Your Summaries</h1>
-          <Button
-            variant="outline"
-            onClick={() => router.push("/dashboard")}
-            className="border-gray-300 text-gray-700 hover:bg-gray-100"
-          >
-            Back to Dashboard
-          </Button>
+        {/* Header */}
+        <div className="flex items-center">
+          <h1 className="text-3xl font-bold text-gray-800 underline">Your Summaries</h1>
         </div>
 
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search summaries by title..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            className="pl-10 bg-white border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-          />
+        {/* Search and Sort */}
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search summaries by title..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="pl-10 bg-white border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <Button
+            variant="outline"
+            onClick={toggleSortOrder}
+            className="flex items-center gap-2 border-gray-300 hover:bg-gray-100"
+          >
+            <ArrowUpDown className="w-4 h-4" />
+            {sortOrder === "asc" ? "Oldest First" : "Newest First"}
+          </Button>
         </div>
 
         {/* Summaries List */}
@@ -124,12 +143,30 @@ export default function SummariesPage() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
+                    className="border-b border-gray-200 pb-4 last:border-b-0"
                   >
                     <Link
                       href={`/summaries/${summary.id}`}
-                      className="text-blue-600 hover:underline font-medium text-lg"
+                      className="block hover:bg-gray-50 p-2 rounded-md transition-colors"
                     >
-                      {summary.title}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg font-medium text-blue-600 hover:underline">
+                            {summary.title}
+                          </h3>
+                          <p className="text-sm text-gray-500 flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            {new Date(summary.createdAt).toLocaleDateString(
+                              "en-US",
+                              {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              }
+                            )}
+                          </p>
+                        </div>
+                      </div>
                     </Link>
                   </motion.li>
                 ))}

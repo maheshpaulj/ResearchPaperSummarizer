@@ -1,8 +1,18 @@
+"use client";
+import { motion } from "framer-motion";
 import Link from "next/link";
 
 export default function Home() {
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+  };
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="flex min-h-screen flex-col items-center justify-center p-8">
       <div className="text-center">
         <h1 className="text-4xl font-bold mb-4">SEPM Project</h1>
         <p className="mb-8 text-lg">AI-Driven Research Paper Summarizer</p>
@@ -13,6 +23,6 @@ export default function Home() {
           Get Started
         </Link>
       </div>
-    </main>
+    </motion.div>
   );
 }

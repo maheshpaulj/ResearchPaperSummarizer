@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
         messages: [
           {
             role: "system",
-            content: "You are an expert research paper summarizer. Return a JSON object wrapped in markdown code block (```json). Include fields: title, authors, abstract, introduction, model, experiments, results, conclusion. Use full markdown syntax (#, ##, **bold**, *italic*) within string values.",
+            content: "You are an expert research paper summarizer, From the given research paper, summarize each topic and give a brief and mention any important points like dataset used, algorithms used and whatnot. Return a JSON object wrapped in markdown code block (```json). Include fields: title, authors(always as a list []), abstract, introduction, model, experiments, results, conclusion. Use full markdown syntax (#, ##, **bold**, *italic*) within string values.",
           },
           { role: "user", content: `Summarize this research paper:\n\n${pdfText}` },
         ],
